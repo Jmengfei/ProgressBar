@@ -1,8 +1,8 @@
 # ProgressBar
 
->在网上翻阅了很多关于ProgressBar滚动效果，但是始终没有找到适合项目中的这种效果，故自己写篇博文，记录一下写作过程，给大家做一个参考。先看下效果图
+>在网上翻阅了很多关于ProgressBar滚动效果，但是始终没有找到适合项目中的这种效果，故自己写篇博文，记录一下写作过程，给大家做一个参考。先看下最终效果效果图
 
-![这里写图片描述](http://img.blog.csdn.net/20170907124014890?watermark/2/text/aHR0cDovL2Jsb2cuY3Nkbi5uZXQvc2luYXRfMzY2Njg3MzE=/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70/gravity/SouthEast)
+![这里写图片描述](http://img.blog.csdn.net/20170907172219783?watermark/2/text/aHR0cDovL2Jsb2cuY3Nkbi5uZXQvc2luYXRfMzY2Njg3MzE=/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70/gravity/SouthEast)
 
 >我这里用的是LICEcap软件录制的gif图，效果有点掉帧，哪位仁兄有比较好的录制gif的软件烦请相告，小弟在此先行谢过。
 
@@ -14,7 +14,8 @@
     android:id="@+id/activity_main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical">
+    android:orientation="vertical"
+    android:layout_margin="5dp">
 
     <TextView
         android:layout_marginTop="50dp"
@@ -23,7 +24,8 @@
         android:layout_height="wrap_content"
         android:text="0%"
         android:textColor="#ff00"
-        android:textSize="12sp" />
+        android:textSize="12sp"
+        android:padding="3dp"/>
 
     <ProgressBar
         android:id="@+id/pb_progressbar"
@@ -32,8 +34,6 @@
         android:layout_height="5dp"
         android:max="100"
         android:progress="0"
-        android:layout_marginLeft="10dp"
-        android:layout_marginRight="10dp"
         android:progressDrawable="@drawable/progressbar_color" />
 
     <Button
@@ -42,7 +42,6 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="30dp"
         android:text="start" />
-
 </LinearLayout>
 ```
 
@@ -119,7 +118,7 @@
                         }
                     });
                     try {
-                        Thread.sleep(30);
+                        Thread.sleep(80);
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
@@ -127,8 +126,52 @@
             }
         }).start();
 ```
-看到很多朋友留言反应当进度条是最大值时，上面的字体超出了屏幕范围而看不到的问题。因为当时的代码是按照屏幕的宽度作为滑动距离的最大值，所以当数据最大时就超出了屏幕，这次修改了一下代码，最大宽度改为progressBar控件的宽度，这样更合理一些。
+大功告成，但是当我们运行起来的时候发现，当ProgressBar达到最大值时，上面的字体超出了屏幕范围而看不到了。效果如图所示：
 
-当然，如果你的progressBar的宽度和屏幕的宽度相等时，此时当进度条是最大值时依然超出了屏幕的范围这个问题，这个如果有哪位仁兄有好的思路，在此跪求。
+![这里写图片描述](http://img.blog.csdn.net/20170907173312004?watermark/2/text/aHR0cDovL2Jsb2cuY3Nkbi5uZXQvc2luYXRfMzY2Njg3MzE=/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70/gravity/SouthEast)
 
-到这里咱们就完成了，有不清楚的可以留言。如果觉得还不错，欢迎star和fork。
+这给使用者造成了很大的困惑，静下心来分析一下，可以知道TextView一直在对应ProgressBar数据的右面，语言功底不太好，咱们上图看：
+
+![这里写图片描述](http://img.blog.csdn.net/20170907173537058?watermark/2/text/aHR0cDovL2Jsb2cuY3Nkbi5uZXQvc2luYXRfMzY2Njg3MzE=/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70/gravity/SouthEast)
+
+可以看出，当数据为0%时就在progressBar对应数据的右方，当数据为最大值时，超出屏幕显示不了就不足为其了。咱们现在如果想让progressBar是最大值时还能显示，就需要当偏移的距离加上字体的宽度和字体右面的Padding值大于progressBar宽度的时候不偏移。接着修改代码如下：
+
+```
+ //开启分线程
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                //每一段要移动的距离
+                scrollDistance = (float) ((1.0 / pbProgressbar.getMax()) * width);
+                for (int i = 0; i < status; i++) {
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            // 控制进度条的增长进度
+                            pbProgressbar.incrementProgressBy(1);
+                            currentStatue++;
+                            tvPrecent.setText(currentStatue + "%");
+                            // 得到字体的宽度
+                            tvWidth = tvPrecent.getWidth();
+                            currentPosition += scrollDistance;
+                            //做一个平移动画的效果
+                            // 这里加入条件判断
+                            if (tvWidth + currentPosition <= width - tvPrecent.getPaddingRight()) {
+                                tvPrecent.setTranslationX(currentPosition);
+                            }
+                        }
+                    });
+                    try {
+                        Thread.sleep(80);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }).start();
+```
+我们运行起来，再来看下效果：
+
+![这里写图片描述](http://img.blog.csdn.net/20170907174804312?watermark/2/text/aHR0cDovL2Jsb2cuY3Nkbi5uZXQvc2luYXRfMzY2Njg3MzE=/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70/gravity/SouthEast)
+
+到这里咱们就完成了，有不清楚或者写错的地方欢迎留言指正，我会第一时间答复。如果觉得对你有帮助，欢迎star和fork。
